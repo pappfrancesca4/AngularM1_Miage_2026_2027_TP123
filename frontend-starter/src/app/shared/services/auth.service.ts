@@ -1,4 +1,4 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { tap } from 'rxjs';
 import { AuthResponse } from '../models/auth-response.model';
@@ -11,6 +11,9 @@ export class AuthService {
 
   readonly currentUser = signal<User | null>(null);
   readonly token = signal<string | null>(localStorage.getItem('gpc_token'));
+    // Signal "calculé" : il se recalcule tout seul quand token() change.
+  // true si un token existe, false sinon.
+  readonly isLoggedIn = computed(() => this.token() !== null);
 
   login(email: string, password: string) {
     return this.http
@@ -37,6 +40,7 @@ export class AuthService {
   }
 
   logout(): void {
+    console.debug('[AuthService] Déconnexion : nettoyage de l’état local');
     localStorage.removeItem('gpc_token');
     this.token.set(null);
     this.currentUser.set(null);
@@ -46,5 +50,7 @@ export class AuthService {
     localStorage.setItem('gpc_token', response.token);
     this.token.set(response.token);
     this.currentUser.set(response.user);
+    console.debug('[AuthService] Session ouverte pour', response.user.email);
   }
+
 }
