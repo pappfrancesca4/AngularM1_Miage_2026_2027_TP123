@@ -22,7 +22,7 @@ Comprendre l'architecture du projet sans modifier le code : composant racine, ro
 
 ### Prompts principaux
 1. Envoi du lien du dépôt GitHub pour une première présentation du projet.
-2. « Avant de commencer je veux que tu m'expliques toute l'architecture, les bonnes pratiques à suivre, les .md, chaque fichier en détail comme pour une personne qui n'a jamais vu ça, et explique aussi les frameworks utilisés comme pour une personne qui ne les connaît pas. »
+2. « Avant de commencer je veux que tu m'expliques toute l'architecture, les bonnes pratiques à suivre, les .md, chaque fichier en détail comme pour une personne qui n'a jamais vu ça, et explique aussi les frameworks utilisés comme pour une personne qui ne les connaît pas, comme si t'etais un professeur. »
 3. Envoi de l'énoncé de la Mission 0.
 
 ### Plan proposé par l'agent
@@ -96,10 +96,12 @@ Aucun (mission d'analyse uniquement).
 Compléter la partie utilisateur : formulaires réactifs validés, appels register/login, stockage du JWT, Signal `currentUser`, redirections, déconnexion, chargement et modification du profil, gestion du `401`.
 
 ### Prompt principal (session Claude Application)
-« [Énoncé de la Mission 1] Juste donne-moi les bouts de code, explique-les en détail comme pour une personne qui ne connaît pas et dis-moi où les ajouter. Donne-moi juste ce qu'il y a à changer. Prends en compte les .md de mon projet quand tu génères du code, et fais-le dans l'ordre de la liste. »
+« [Énoncé de la Mission 1] Je veux voir chaque bout de code a ajouter, explique-les en détail comme pour une personne qui ne connaît pas. Prends en compte les .md de mon projet quand tu génères du code, et fais-le dans l'ordre de la liste. »
+
+J'ai choisi ce prompt pour bien comprendre l'architecture du code et les missions par moi-meme avant de laisser l'agent IA travailler
 
 ### Prompt principal (session Claude Code CLI — complétion finale)
-« complete moi le reste de ce qu il me manque pour le rendu de tp 1 et complete moi le rapport que j ai commence en respondant aux questions dans le sujet »
+« Complete le reste de ce qu il me manque pour le rendu de tp 1 et ameliore le code et complete moi le rapport que j ai commence en respondant aux questions dans le sujet »
 
 ### Plan proposé par l'agent (Claude Code CLI)
 1. Lecture du sujet `SUJET_ETUDIANT_TP1.md`, du rapport `RAPPORT_TP1.md` et de tous les fichiers composants/services déjà écrits.
@@ -139,7 +141,7 @@ Fichiers modifiés par rapport au commit initial (d'après `git status`) :
 | `RAPPORT_TP1.md` | Créé (rapport complet de la mission) |
 | `RAPPORT_IA_MODELE.md` | Ce fichier (rapport d'usage IA) |
 
-### Vérifications réalisées par le binôme
+### Vérifications réalisées par l'etudiant
 - `ng build` sans erreur (vérifier dans le terminal de `frontend-starter/`).
 - Application lancée : `ng serve` + backend `npm start` simultanément.
 - Test dans le navigateur : inscription d'un nouveau compte, connexion, navigation vers le profil, modification du nom, déconnexion.
@@ -165,7 +167,7 @@ Un Signal est une valeur **réactive en mémoire** : quand elle change, Angular 
 - **Mise à jour du profil :** côté front : `profile-page.html` (formulaire), `profile-page.ts` (méthode `save()`), `auth.service.ts` (méthode `update()`), `auth.interceptor.ts` (ajout du token). Côté back : `backend/src/app.js` (middleware `auth` + route `PUT /api/users/me`), `backend/src/models/User.js` (validation `minlength: 2`, méthode `toPublic()`).
 - **Modèle utilisé et conseil :** on peut demander conseil à l'assistant lui-même en décrivant la tâche, consulter la documentation du fournisseur (Anthropic, OpenAI…) ou demander à l'enseignant.
 
-### Ce que chaque membre sait expliquer sans l'agent
+### Ce que l'etudiant sait expliquer sans l'agent
 - Le fonctionnement d'un Reactive Form, des validateurs et de `touched`.
 - Pourquoi `subscribe()` déclenche réellement la requête HTTP (Observable paresseux).
 - Pourquoi un `401` sur `/api/auth/login` ne doit **pas** provoquer de redirection (c'est une erreur normale de formulaire, pas un token expiré) — et comment distinguer les deux cas dans l'intercepteur si nécessaire.
