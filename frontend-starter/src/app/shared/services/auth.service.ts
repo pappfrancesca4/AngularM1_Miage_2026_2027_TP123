@@ -50,7 +50,7 @@ export class AuthService {
     localStorage.setItem('gpc_token', response.token);
     this.token.set(response.token);
     this.currentUser.set(response.user);
-    console.debug('[AuthService] Session ouverte pour', response.user.email);
+    console.debug('[AuthService] Session ouverte pour', response.user.id);
   }
 
 }

@@ -8,10 +8,18 @@ Pour chaque mission, détailler et fournir des explications concernant : objecti
 
 | Phase | Assistant | Modèle | Mode |
 |---|---|---|---|
-| Exploration initiale (M0) | Claude Application (web/desktop) | `claude-opus-5-5` | Clonage du dépôt GitHub, lecture de fichiers, aucune modification du dépôt |
-| Complétion du code (M1) + rapport | Claude Code CLI dans VS Code | `claude-sonnet-4-6` | Accès direct au workspace, lecture + modification des fichiers du projet |
+| Exploration et apprentissage (M0 + début M1) | Claude Application (interface web) | `claude-opus-5-5` | Conversation web ; code proposé par l'agent recopié et intégré manuellement |
+| Complétion du code (fin M1) + rapports | Claude Code CLI dans VS Code | `claude-sonnet-4-6` | Accès direct au workspace, lecture + modification des fichiers du projet |
 
 **Consommation de tokens :** l'application web Claude n'affiche pas de compteur exact par message ; seule l'utilisation du quota est visible dans les réglages du compte. Claude Code CLI affiche les statistiques de session (tokens en entrée/sortie) en fin de conversation.
+
+### Démarche choisie
+
+Au début du TP, j'ai délibérément choisi de travailler avec l'**interface web de Claude** et d'**intégrer le code manuellement**, plutôt que de laisser un agent modifier directement les fichiers. Cette décision était pédagogique : copier-coller chaque bout de code et le lire ligne par ligne m'a forcé à comprendre ce que je posais dans le projet, à identifier les imports manquants, à repérer les erreurs et à me familiariser avec l'architecture Angular (composants standalone, `inject()`, Signals, Reactive Forms, intercepteurs).
+
+Une fois que j'avais suffisamment compris le fonctionnement du projet — la séparation composant / service / intercepteur, le rôle de chaque fichier, les règles des `.md` — j'ai basculé sur **Claude Code CLI** pour avancer plus vite sur les points restants. À ce stade, je savais quoi vérifier dans les diffs et je pouvais évaluer les propositions de l'agent sans risquer d'accepter du code que je n'aurais pas compris.
+
+Cette progression (interface web → CLI) correspond bien à la recommandation de `CONSEILS_POUR_UTIISER_ASSISTANT_AI.md` : utiliser un chatbot web pour apprendre les concepts et explorer, puis passer à un outil de projet dès qu'on est capable de vérifier les modifications.
 
 ---
 
@@ -170,7 +178,109 @@ Un Signal est une valeur **réactive en mémoire** : quand elle change, Angular 
 ### Ce que l'etudiant sait expliquer sans l'agent
 - Le fonctionnement d'un Reactive Form, des validateurs et de `touched`.
 - Pourquoi `subscribe()` déclenche réellement la requête HTTP (Observable paresseux).
-- Pourquoi un `401` sur `/api/auth/login` ne doit **pas** provoquer de redirection (c'est une erreur normale de formulaire, pas un token expiré) — et comment distinguer les deux cas dans l'intercepteur si nécessaire.
+- Pourquoi un `401` sur `/api/auth/login` ne doit **pas** provoquer de redirection — et pourquoi l'intercepteur exclut les routes `/api/auth/` avec `!request.url.startsWith('/api/auth/')`.
 - Pourquoi `inject()` est appelé en dehors de `catchError` dans l'intercepteur (injection uniquement dans le contexte d'injection Angular, pas dans une closure asynchrone).
 - Pourquoi la déconnexion n'appelle pas le serveur : le JWT est stateless, il suffit de le supprimer localement.
 - Le rôle de `computed()` pour `isLoggedIn` : valeur dérivée mise à jour automatiquement quand `token()` change.
+
+---
+
+# TP2 — Bibliothèque, upload et lecture audio
+
+## Outils utilisés
+
+| Phase | Assistant | Modèle | Mode |
+|---|---|---|---|
+| Diagnostic de l'existant | Claude Code dans VS Code | `claude-sonnet-4-6` | Lecture du workspace, liste de ce qui manque par rapport au sujet |
+| Contre-vérification + code | Claude Application (web/desktop) | `claude-opus-5-5` | Lecture du code cloné, compilation sur une copie locale, aucune modification de notre dépôt |
+| Corrections finales + rapports | Claude Code dans VS Code | `claude-sonnet-4-6` | Accès direct au workspace, modification des fichiers, rédaction des rapports |
+
+Nous avons volontairement utilisé deux assistants : le premier pour un diagnostic rapide sur le workspace, le second pour le vérifier de façon indépendante et comprendre chaque choix avant d'intégrer le code.
+
+---
+
+## Diagnostic initial du TP2
+
+### Prompt (Claude Code, VS Code)
+« il manque quoi pour completer le tp 2 ne genere pas de code »
+
+### Résultat de l'agent VS Code
+- Mission 2 : pagination jugée fonctionnelle ; seul manque signalé : un Signal `error` (l'erreur de chargement n'apparaissait qu'en console).
+- Mission 3 : pas de validation du fichier avant l'envoi (format, 25 Mo), pas d'état `uploading` (double soumission possible), succès et erreurs uniquement en console, `<input type="file">` non vidé après l'envoi, pas d'indication du morceau en cours, pas d'erreur de lecture affichée, `ObjectURL` non révoquée à la destruction du composant, pistes non présentées en cards.
+
+### Contre-vérification (Claude Application)
+Prompt : « Mon agent dans VS Code m'a dit qu'il manque ça : [diagnostic collé] »
+
+L'agent a confirmé tous les points du diagnostic, puis a relevé des points supplémentaires :
+- `@if (loading())` et `@for` étaient côte à côte : au premier chargement, "Chargement…" et "Aucune piste." pouvaient s'afficher en même temps.
+- Deux cas d'erreur audio distincts à traiter : échec du téléchargement HTTP, et fichier illisible par le navigateur.
+- Points restants du TP1 encore ouverts : chargement automatique du profil, et `logout()` déclenché par l'intercepteur sur un mauvais mot de passe (condition `/api/auth/` manquante).
+
+### Ce que nous en retenons
+Un premier diagnostic d'IA peut être plausible mais incomplet. Croiser avec un second agent et relire le sujet ligne par ligne a permis de trouver un vrai bug d'affichage (spinner + "Aucune piste" simultanés) que le premier agent avait jugé correct.
+
+---
+
+## Mission 2 — Bibliothèque paginée
+
+### Objectif
+Afficher les pistes page par page avec pagination serveur (`GET /api/tracks?page=...&limit=...`), état représenté par des Signals (`tracks`, `page`, `pages`, `loading`, `loadError`), affichage `@for` / `@empty` / `@if` et boutons désactivés aux bornes, sans modifier le backend.
+
+### Prompt principal (Claude Application)
+« On fait le TP2, tu peux me refaire un résumé du projet et après je veux qu'on fasse chaque demande une par une et que tu m'expliques les choix d'architecture, pourquoi et comment tu as fait. »
+
+Travail demande par demande pour comprendre chaque modification avant de passer à la suivante.
+
+### Plan proposé par l'agent
+1. Vérifier `TrackService.list(page, limit)` — déjà correct, aucun changement.
+2. Ajouter le Signal `loadError` et réécrire `load()`.
+3. Corriger l'affichage avec `@if (loading())` / `@else if (loadError())` / `@else` contenant `@for` / `@empty`.
+4. Boutons Préc./Suiv. désactivés aux bornes.
+5. Vérifier dans Network qu'une requête part à chaque changement de page.
+
+### Fichiers effectivement modifiés
+
+| Fichier | Modification |
+|---|---|
+| `frontend-starter/src/app/components/tracks-page/tracks-page.ts` | Ajout signaux `loadError`, `uploading`, `uploadError`, `uploadSuccess`, `fileError`, `currentTrack`, `audioError` ; validation fichier dans `choose()` ; `ngOnDestroy()` ; `formatSize()` / `formatDate()` |
+| `frontend-starter/src/app/components/tracks-page/tracks-page.html` | Affichage de tous les signaux d'erreur/succès, indicateur morceau en cours, lecteur déplacé hors des cards |
+| `frontend-starter/src/app/components/tracks-page/tracks-page.css` | Styles cards, `.playing`, `.pager`, `.player` |
+| `frontend-starter/src/app/components/profile-page/profile-page.ts` | Auto-chargement dans `constructor()`, signaux `saveSuccess` / `saveError`, `minLength(2)` |
+| `frontend-starter/src/app/components/profile-page/profile-page.html` | Messages succès/erreur, suppression bouton "Charger" manuel, état "Chargement…" |
+| `frontend-starter/src/app/shared/interceptors/auth.interceptor.ts` | Condition `!request.url.startsWith('/api/auth/')` sur le 401 |
+| `frontend-starter/src/app/shared/services/auth.service.ts` | Log `email` → `id` dans `storeAuthentication()` |
+| `frontend-starter/best-practices.md` | Section Tests + section Rapports de progression |
+| `RAPPORT_TP1.md` | Section "Corrections post-rendu" |
+
+`TrackService` n'a pas été modifié : la pagination était déjà fonctionnelle.
+
+### Vérifications à réaliser
+- `ng build` sans erreur.
+- Network : requête `tracks?page=1&limit=5` au chargement, `tracks?page=2&limit=5` après clic Suivant.
+- Backend arrêté → message d'erreur visible dans l'UI (pas juste en console).
+- Upload : multipart avec champs `audio` et `title` visibles dans Request Payload.
+- Fichier > 25 Mo → message d'erreur avant l'envoi, aucune requête réseau.
+- Lecture audio → `Authorization: Bearer ...` présent dans les Request Headers.
+- Quitter la page après lecture → aucune fuite mémoire (ObjectURL révoquée).
+
+### Preuves de fonctionnement
+*(Captures à ajouter — masquer le token)*
+
+| Scénario | Méthode | URL | Statut | Observation |
+|---|---|---|---|---|
+| Chargement page 1 | GET | `/api/tracks?page=1&limit=5` | 200 | `items` ≤ 5, `pages` dans la réponse |
+| Clic Suivant | GET | `/api/tracks?page=2&limit=5` | 200 | Nouvelle requête, paramètre `page` mis à jour |
+| Backend arrêté | GET | `/api/tracks?page=1&limit=5` | 0 | Message d'erreur affiché dans l'UI |
+| Upload réussi | POST | `/api/tracks` | 201 | Multipart `audio` + `title` ; message succès affiché |
+| Fichier invalide | — | — | — | Erreur affichée immédiatement, aucune requête envoyée |
+| Lecture audio | GET | `/api/tracks/:id/audio` | 200 | Header `Authorization` présent ; piste courante indiquée |
+
+### Ce que l'étudiant sait expliquer sans l'agent
+- Pourquoi la pagination est faite par le serveur (`skip`/`limit` MongoDB) et non par découpage dans Angular.
+- Pourquoi la requête est dans `TrackService` et pourquoi le service ne fait pas de `subscribe()`.
+- Pourquoi l'état de la liste est dans le composant et non dans `TrackService`.
+- Le rôle de chaque Signal et pourquoi `limit` n'en est pas un.
+- Pourquoi `loading.set(false)` doit être dans `next` ET dans `error`.
+- Pourquoi une URL directe dans `src` ne peut pas porter le header `Authorization`.
+- La différence entre streaming serveur, téléchargement Blob complet côté client, et 100 balises `<audio>` pré-chargées.
+- Pourquoi `URL.createObjectURL` doit être révoquée et ce qui arrive si on ne le fait pas.

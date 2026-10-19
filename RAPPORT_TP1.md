@@ -178,6 +178,45 @@ Observations à effectuer dans l'onglet **Network** des DevTools (filtre XHR/Fet
 
 ---
 
+## Corrections post-rendu
+
+Trois bugs identifiés après relecture du code avec l'assistant web (Claude Application) :
+
+### 1. Intercepteur — 401 sur toutes les routes y compris `/api/auth/`
+
+**Problème :** l'intercepteur attrapait tous les 401 sans distinction. Un mauvais mot de passe sur `/api/auth/login` déclenchait donc `auth.logout()` alors qu'il n'y avait aucun token à effacer, et tentait une redirection vers `/login` alors qu'on y était déjà.
+
+**Correction** dans `shared/interceptors/auth.interceptor.ts` :
+```ts
+// avant
+if (error.status === 401)
+// après
+if (error.status === 401 && !request.url.startsWith('/api/auth/'))
+```
+
+### 2. Email loggué dans `AuthService`
+
+**Problème :** `storeAuthentication()` loggait `response.user.email` dans la console. Ce n'est pas un secret JWT, mais c'est une donnée personnelle inutile — le reste du projet utilise l'`id` pour les logs de débogage.
+
+**Correction** dans `shared/services/auth.service.ts` :
+```ts
+// avant
+console.debug('[AuthService] Session ouverte pour', response.user.email);
+// après
+console.debug('[AuthService] Session ouverte pour', response.user.id);
+```
+
+### 3. Page profil — chargement manuel et pas de feedback de sauvegarde
+
+**Problème :** le profil ne se chargeait pas automatiquement à l'ouverture de la page (bouton « Charger mon profil » requis), et après `PUT /api/users/me` aucun message n'était affiché dans l'UI (succès ou erreur visibles seulement en console).
+
+**Correction** dans `components/profile-page/profile-page.ts` :
+- `constructor()` appelle `load()` → chargement automatique.
+- Signaux `saveSuccess` et `saveError` → feedback visible dans le template.
+- `Validators.minLength(2)` ajouté, cohérent avec le backend et le formulaire d'inscription.
+
+---
+
 ## Usage de l'IA
 
 Voir le fichier `RAPPORT_IA_MODELE.md` pour le détail de l'usage de l'assistant IA, les prompts utilisés, les vérifications effectuées et ce que chaque membre du binôme sait maintenant expliquer sans l'agent.
