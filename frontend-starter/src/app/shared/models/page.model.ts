@@ -1,8 +1,13 @@
-/** Generic paginated response used by the tracks endpoint. */
+/** Generic paginated response returned by mongoose-aggregate-paginate-v2. */
 export interface Page<T> {
-  items: T[];
-  page: number;
+  docs: T[];
+  totalDocs: number;
   limit: number;
-  total: number;
-  pages: number;
+  page: number;
+  totalPages: number;
+  pagingCounter: number;
+  hasPrevPage: boolean;
+  hasNextPage: boolean;
+  prevPage: number | null;
+  nextPage: number | null;
 }

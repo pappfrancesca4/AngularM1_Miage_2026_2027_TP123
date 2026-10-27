@@ -28,10 +28,9 @@ Cette progression (interface web → CLI) correspond bien à la recommandation d
 ### Objectif
 Comprendre l'architecture du projet sans modifier le code : composant racine, routes, enregistrement de `HttpClient`, modèles, services, pages, mécanisme d'ajout du JWT, et produire un schéma du flux lors d'un clic sur « Se connecter ».
 
-### Prompts principaux
-1. Envoi du lien du dépôt GitHub pour une première présentation du projet.
-2. « Avant de commencer je veux que tu m'expliques toute l'architecture, les bonnes pratiques à suivre, les .md, chaque fichier en détail comme pour une personne qui n'a jamais vu ça, et explique aussi les frameworks utilisés comme pour une personne qui ne les connaît pas, comme si t'etais un professeur. »
-3. Envoi de l'énoncé de la Mission 0.
+### Démarche
+
+La session a débuté par l'envoi du lien du dépôt GitHub. Avant d'aborder les missions, une demande d'explication complète de l'architecture a été formulée : chaque fichier, les bonnes pratiques du projet, les fichiers `.md`, et l'ensemble des frameworks utilisés, expliqués comme pour un débutant. L'énoncé de la Mission 0 a ensuite été soumis à l'assistant.
 
 ### Plan proposé par l'agent
 - Lecture de tous les fichiers `.md` (README, sujets, API_CONTRACT, ATLAS_SETUP, conseils IA, AGENTS/CLAUDE/GEMINI.md, best-practices.md) puis du code backend et frontend.
@@ -103,13 +102,13 @@ Aucun (mission d'analyse uniquement).
 ### Objectif
 Compléter la partie utilisateur : formulaires réactifs validés, appels register/login, stockage du JWT, Signal `currentUser`, redirections, déconnexion, chargement et modification du profil, gestion du `401`.
 
-### Prompt principal (session Claude Application)
-« [Énoncé de la Mission 1] Je veux voir chaque bout de code a ajouter, explique-les en détail comme pour une personne qui ne connaît pas. Prends en compte les .md de mon projet quand tu génères du code, et fais-le dans l'ordre de la liste. »
+### Démarche (session Claude Application)
 
-J'ai choisi ce prompt pour bien comprendre l'architecture du code et les missions par moi-meme avant de laisser l'agent IA travailler
+L'énoncé de la Mission 1 a été soumis à l'assistant avec la demande de traiter chaque point dans l'ordre, en expliquant chaque modification en détail pour quelqu'un qui découvrirait Angular, et en respectant les contraintes des fichiers `.md` du projet. Ce choix avait pour objectif de comprendre l'architecture avant de déléguer les modifications — lire chaque extrait de code proposé oblige à comprendre ce qu'on intègre.
 
-### Prompt principal (session Claude Code CLI — complétion finale)
-« Complete le reste de ce qu il me manque pour le rendu de tp 1 et ameliore le code et complete moi le rapport que j ai commence en respondant aux questions dans le sujet »
+### Démarche (session Claude Code CLI — complétion finale)
+
+Une fois les bases comprises, Claude Code CLI a été utilisé pour finaliser les points restants et compléter le rapport. L'assistant a été invité à lire l'état du projet, à identifier ce qui manquait par rapport au sujet, et à rédiger les sections du rapport correspondantes.
 
 ### Plan proposé par l'agent (Claude Code CLI)
 1. Lecture du sujet `SUJET_ETUDIANT_TP1.md`, du rapport `RAPPORT_TP1.md` et de tous les fichiers composants/services déjà écrits.
@@ -201,15 +200,17 @@ Nous avons volontairement utilisé deux assistants : le premier pour un diagnost
 
 ## Diagnostic initial du TP2
 
-### Prompt (Claude Code, VS Code)
-« il manque quoi pour completer le tp 2 ne genere pas de code »
+### Démarche
+
+L'assistant a été invité à identifier les éléments manquants par rapport aux exigences du TP2, sans générer de code, afin d'obtenir un diagnostic objectif de l'état du projet.
 
 ### Résultat de l'agent VS Code
 - Mission 2 : pagination jugée fonctionnelle ; seul manque signalé : un Signal `error` (l'erreur de chargement n'apparaissait qu'en console).
 - Mission 3 : pas de validation du fichier avant l'envoi (format, 25 Mo), pas d'état `uploading` (double soumission possible), succès et erreurs uniquement en console, `<input type="file">` non vidé après l'envoi, pas d'indication du morceau en cours, pas d'erreur de lecture affichée, `ObjectURL` non révoquée à la destruction du composant, pistes non présentées en cards.
 
 ### Contre-vérification (Claude Application)
-Prompt : « Mon agent dans VS Code m'a dit qu'il manque ça : [diagnostic collé] »
+
+Le diagnostic du premier agent a été soumis au second pour validation et complément.
 
 L'agent a confirmé tous les points du diagnostic, puis a relevé des points supplémentaires :
 - `@if (loading())` et `@for` étaient côte à côte : au premier chargement, "Chargement…" et "Aucune piste." pouvaient s'afficher en même temps.
@@ -226,10 +227,9 @@ Un premier diagnostic d'IA peut être plausible mais incomplet. Croiser avec un 
 ### Objectif
 Afficher les pistes page par page avec pagination serveur (`GET /api/tracks?page=...&limit=...`), état représenté par des Signals (`tracks`, `page`, `pages`, `loading`, `loadError`), affichage `@for` / `@empty` / `@if` et boutons désactivés aux bornes, sans modifier le backend.
 
-### Prompt principal (Claude Application)
-« On fait le TP2, tu peux me refaire un résumé du projet et après je veux qu'on fasse chaque demande une par une et que tu m'expliques les choix d'architecture, pourquoi et comment tu as fait. »
+### Démarche
 
-Travail demande par demande pour comprendre chaque modification avant de passer à la suivante.
+La session a commencé par une présentation générale du projet, puis chaque demande a été traitée une par une. L'accent a été mis sur l'explication des choix d'architecture et des raisons de chaque décision technique, avant de passer à la demande suivante.
 
 ### Plan proposé par l'agent
 1. Vérifier `TrackService.list(page, limit)` — déjà correct, aucun changement.
@@ -284,3 +284,240 @@ Travail demande par demande pour comprendre chaque modification avant de passer 
 - Pourquoi une URL directe dans `src` ne peut pas porter le header `Authorization`.
 - La différence entre streaming serveur, téléchargement Blob complet côté client, et 100 balises `<audio>` pré-chargées.
 - Pourquoi `URL.createObjectURL` doit être révoquée et ce qui arrive si on ne le fait pas.
+
+---
+
+## Fonctionnalités optionnelles — Démarche
+
+| Phase | Assistant | Modèle | Mode |
+|---|---|---|---|
+| Fonctionnalités optionnelles 1, 2, 3 + rapports | Claude Code dans VS Code | `claude-sonnet-4-6` | Accès direct au workspace, modification des fichiers, rédaction des rapports |
+
+Pour chaque fonctionnalité, le workflow suivi était : explication du plan + diagramme de flux → confirmation → implémentation fichier par fichier → documentation dans `RAPPORT_TP2.md` → vérification `ng build`. Ce workflow a été formalisé progressivement dans `best-practices.md` au cours des sessions.
+
+---
+
+## Script de peuplement de données
+
+### Objectif
+Créer suffisamment de pistes dans la base pour tester la pagination. L'assistant a été invité à écrire un script bash qui se connecte à l'API, crée un compte de test si nécessaire, et envoie plusieurs fichiers audio factices.
+
+### Plan proposé par l'agent
+Création du fichier `frontend-starter/fichiers-audio-de-test/seed-tracks.sh` : authentification via `POST /api/auth/login`, inscription via `POST /api/auth/register` si le compte n'existe pas, génération de fichiers `.mp3` factices avec `dd`, envoi via `curl` multipart vers `POST /api/tracks`.
+
+### Erreurs ou propositions corrigées
+
+**Correction 1 — Connexion silencieuse.**
+Le script a été exécuté mais la connexion échouait sans aucun message d'erreur. Le comportement observé a été signalé à l'agent (sortie du terminal montrée). L'agent a relu le script, identifié la cause et proposé une correction. La correction a été appliquée et le script relancé.
+
+**Correction 2 — Pistes absentes après exécution.**
+Malgré la correction précédente, aucune piste n'apparaissait dans l'interface après exécution du script. Ce résultat a été signalé à l'agent. L'agent a proposé une deuxième correction ciblant l'envoi des fichiers. La correction a été appliquée, le script relancé, et les pistes sont apparues dans l'interface.
+
+Les détails techniques de chaque correction sont documentés dans `RAPPORT_TP2.md`.
+
+### Fichiers effectivement modifiés
+
+| Fichier | Modification |
+|---|---|
+| `frontend-starter/fichiers-audio-de-test/seed-tracks.sh` | Création du script de peuplement |
+
+---
+
+## Fonctionnalité optionnelle 1 — Suppression de piste
+
+### Déclenchement
+La fonctionnalité a été demandée après confirmation que le script de peuplement fonctionnait.
+
+### Plan proposé par l'agent
+Ajout d'un bouton de suppression avec confirmation en deux clics. Plan : nouvelle méthode `delete(id)` dans le service, deux Signals `confirmId` et `deletingId` dans le composant, trois méthodes `askDelete` / `cancelDelete` / `confirmDelete`, affichage conditionnel dans le template, nettoyage du lecteur si la piste supprimée était en cours de lecture, décrémentation de page si c'était le dernier élément.
+
+### Erreurs ou propositions rejetées
+Aucune proposition rejetée. La fonctionnalité a été implémentée en une passe, validée manuellement.
+
+### Fichiers effectivement modifiés
+
+| Fichier | Modification |
+|---|---|
+| `frontend-starter/src/app/shared/services/track.service.ts` | Ajout de `delete(id)` |
+| `frontend-starter/src/app/components/tracks-page/tracks-page.ts` | Signals `confirmId`, `deletingId` et méthodes associées |
+| `frontend-starter/src/app/components/tracks-page/tracks-page.html` | Bloc conditionnel Confirmer/Annuler par ligne |
+| `frontend-starter/src/app/components/tracks-page/tracks-page.css` | Styles `.btn-danger` et `.btn-danger-outline` |
+| `RAPPORT_TP2.md` | Section Fonctionnalité optionnelle 1 |
+
+### Ce que l'étudiant sait expliquer sans l'agent
+- Pourquoi `confirmId` stocke un `string | null` plutôt qu'un `boolean`.
+- Pourquoi le nettoyage du lecteur audio se fait dans le callback `next` de la suppression.
+- Pourquoi le bouton est désactivé (et non caché) pendant la requête.
+
+---
+
+## Fonctionnalité optionnelle 2 — Recherche par titre
+
+### Déclenchement
+La fonctionnalité a été enchaînée dans la même session après validation de la suppression.
+
+### Plan proposé par l'agent
+Ajout d'un filtre MongoDB regex côté backend sur le champ `title`, paramètre `search` optionnel ajouté à `TrackService.list()`, `FormControl` débounté dans le composant avec `debounceTime(300)` et `distinctUntilChanged()`, remise à la page 1 à chaque nouvelle recherche, mise à jour de `API_CONTRACT.md`.
+
+### Erreurs ou propositions rejetées
+Aucune proposition rejetée.
+
+### Fichiers effectivement modifiés
+
+| Fichier | Modification |
+|---|---|
+| `backend/src/app.js` | Filtre MongoDB regex sur `title` si `search` présent |
+| `frontend-starter/src/app/shared/services/track.service.ts` | Paramètre `search` dans `list()` |
+| `frontend-starter/src/app/components/tracks-page/tracks-page.ts` | `FormControl search`, abonnement débounté, `ngOnDestroy` |
+| `frontend-starter/src/app/components/tracks-page/tracks-page.html` | Champ de recherche |
+| `API_CONTRACT.md` | Paramètre `search` documenté |
+| `RAPPORT_TP2.md` | Section Fonctionnalité optionnelle 2 |
+
+### Ce que l'étudiant sait expliquer sans l'agent
+- Pourquoi le filtre doit être côté serveur et non côté client.
+- Le rôle de `debounceTime` et `distinctUntilChanged`.
+- Pourquoi la `Subscription` doit être détruite dans `ngOnDestroy`.
+- Pourquoi la page est remise à 1 à chaque nouvelle recherche.
+
+---
+
+## Fonctionnalité optionnelle 3 — Paginateur Angular Material
+
+### Déclenchement
+Demande de remplacement du paginateur manuel par `<mat-paginator>` avec possibilité de changer le nombre de pistes par page.
+
+### Plan proposé par l'agent
+Installation du thème Material dans `angular.json`, import de `MatPaginatorModule`, Signal `total` pour alimenter `[length]`, Signal `limit` comme source unique de vérité pour la taille de page, méthode `pageChange(event: PageEvent)` pour la navigation, `provideAnimations()` dans `main.ts`.
+
+### Erreurs ou propositions corrigées
+
+**Correction 1 — Taille de page sans effet.**
+Après l'implémentation initiale, il a été constaté que changer la taille de page dans le sélecteur ne modifiait pas les résultats affichés. Ce comportement a été signalé à l'agent. L'agent a expliqué la cause, proposé une correction, et demandé confirmation avant d'appliquer. La correction a été validée et appliquée.
+
+**Correction 2 — Flèches de navigation inactives.**
+Après la première correction, les flèches du paginateur s'affichaient mais ne répondaient à aucun clic. Le problème a été signalé à l'agent. L'agent a identifié la cause, proposé d'ajouter une configuration dans le bootstrap, redémarré l'application, et les flèches ont fonctionné.
+
+**Correction 3 — Sélecteur couvrant visuellement les pistes.**
+Le sélecteur de taille de page intégré au composant chevauchait les noms de pistes à l'ouverture. Le problème a été signalé avec une capture. L'agent a proposé une première correction CSS — appliquée mais sans effet. Le problème a été signalé à nouveau. L'agent a proposé une deuxième approche CSS — toujours sans effet. Après ce deuxième échec, l'agent a proposé une solution différente évitant entièrement le sélecteur intégré du composant, remplacé par un élément HTML natif. Cette solution a résolu le problème.
+
+**Correction 4 — Contrôle "Pistes par page" sur toute la largeur.**
+Le contrôle nouvellement ajouté s'affichait en colonne au lieu d'être sur une seule ligne. Le problème a été signalé. L'agent a identifié qu'un style global du projet en était la cause et proposé de changer l'élément HTML utilisé. La correction a été appliquée et le rendu était correct.
+
+Les détails techniques de chaque correction sont documentés dans `RAPPORT_TP2.md`.
+
+### Fichiers effectivement modifiés
+
+| Fichier | Modification |
+|---|---|
+| `frontend-starter/angular.json` | Thème Material `indigo-pink.css` ajouté aux styles |
+| `frontend-starter/src/main.ts` | `provideAnimations()` ajouté aux providers |
+| `frontend-starter/src/app/components/tracks-page/tracks-page.ts` | `MatPaginatorModule`, Signal `total`, `pageChange()`, `changePageSize()` |
+| `frontend-starter/src/app/components/tracks-page/tracks-page.html` | `<mat-paginator>` avec `[hidePageSize]`, `<select>` natif, layout `.library-col` |
+| `frontend-starter/src/app/components/tracks-page/tracks-page.css` | Règles de layout `.pager-bar`, `.page-size-control` |
+| `RAPPORT_TP2.md` | Section Fonctionnalité optionnelle 3 |
+
+### Ce que l'étudiant sait expliquer sans l'agent
+- Pourquoi `mat-paginator` est 0-indexé et comment convertir.
+- Pourquoi `provideAnimations()` est nécessaire.
+- Pourquoi les tentatives de surcharge CSS Material ont échoué et quelle est la bonne approche.
+
+---
+
+## AVANCÉ — Pagination Mongoose avec `aggregate-paginate-v2`
+
+### Déclenchement
+Demande d'implémentation de la fonctionnalité AVANCÉ du sujet TP2 : remplacer la pagination manuelle (`find + skip/limit + countDocuments`) par le plugin `mongoose-aggregate-paginate-v2`, afin de récupérer données et métadonnées de pagination en un seul pipeline MongoDB.
+
+### Plan proposé par l'agent
+Installation du package, enregistrement du plugin sur le schéma `Track` avec `schema.plugin()`, remplacement de la route `GET /api/tracks` par un pipeline d'agrégation (`$match`, `$sort`, `$project`) suivi d'un appel à `Track.aggregatePaginate()`, mise à jour de l'interface `Page<T>` dans le frontend, et adaptation des trois lectures du signal dans `load()` pour les nouveaux noms de champs.
+
+### Erreurs ou propositions corrigées
+
+**Correction 1 — Explication insuffisante du code.**
+Après l'implémentation, les explications fournies résumaient le comportement global de chaque fichier sans détailler chaque ligne ajoutée ou modifiée. Ce niveau d'explication a été jugé insuffisant. L'agent a reçu la demande de tout réexpliquer ligne par ligne, et a fourni une description de chaque ligne : ce qu'elle fait, pourquoi elle est écrite ainsi, et quelle alternative aurait pu être choisie. Cette approche a été ajoutée dans `best-practices.md` comme exigence permanente.
+
+Les détails techniques sont documentés dans `RAPPORT_TP2.md`, section "AVANCÉ — Pagination Mongoose".
+
+### Fichiers effectivement modifiés
+
+| Fichier | Modification |
+|---|---|
+| `backend/package.json` | Ajout de `mongoose-aggregate-paginate-v2` |
+| `backend/src/models/Track.js` | Import du plugin + `schema.plugin(aggregatePaginate)` |
+| `backend/src/app.js` | Import de `mongoose`, remplacement de la route `GET /api/tracks` par pipeline + `aggregatePaginate` |
+| `frontend-starter/src/app/shared/models/page.model.ts` | Interface `Page<T>` mise à jour avec les champs du plugin |
+| `frontend-starter/src/app/shared/services/track.service.ts` | Type de retour de `list()` aligné sur la nouvelle interface |
+| `frontend-starter/src/app/components/tracks-page/tracks-page.ts` | `load()` : `response.docs`, `response.totalPages`, `response.totalDocs` |
+| `API_CONTRACT.md` | Description de `Page<Track>` mise à jour |
+| `RAPPORT_TP2.md` | Section AVANCÉ — Pagination Mongoose ajoutée |
+
+### Ce que l'étudiant sait expliquer sans l'agent
+- Pourquoi `aggregate()` ne caste pas automatiquement les chaînes en ObjectId.
+- Ce que fait `schema.plugin()` et comment il étend le modèle.
+- La différence entre `find()` et `aggregate()` pour le contrôle du type dans le filtre.
+- Le format de réponse du plugin et pourquoi il est plus riche que l'ancien format manuel.
+- Pourquoi `track._id` doit être converti manuellement en string dans le résultat d'un pipeline.
+
+---
+
+## AVANCÉ — Image de couverture
+
+### Déclenchement
+Demande d'implémentation de la fonctionnalité AVANCÉ « image de couverture » du sujet TP2. Parmi les deux approches proposées (upload manuel ou extraction automatique via tags ID3 / web service), l'approche upload manuel a été retenue car plus simple et sans dépendance à un service tiers. Un plan complet (fichiers touchés, diagramme de flux, points de sécurité) a été présenté et validé avant toute écriture de code.
+
+### Plan proposé par l'agent
+Côté backend : champ `coverName` optionnel et caché sur le modèle `Track`, passage de `upload.single` à `upload.fields` pour accepter audio + image, validation du type et de la taille image, nouvelle route `GET /tracks/:id/cover` protégée par JWT et vérification de propriété, nettoyage de l'image à la suppression. Côté frontend : champ `hasCover` sur l'interface, méthode `cover()` dans le service, gestion d'un dictionnaire d'`ObjectURL` indexé par id avec révocation systématique, affichage d'une vignette ou d'un placeholder dans la card.
+
+### Erreurs ou propositions corrigées
+Aucune correction nécessaire après implémentation : le plan a été validé en amont, le code a été expliqué fichier par fichier et ligne par ligne, et la compilation (`ng build`) ainsi que la vérification syntaxique backend (`node --check`) sont passées du premier coup. Les détails techniques sont documentés dans `RAPPORT_TP2.md`, section « AVANCÉ — Image de couverture ».
+
+### Fichiers effectivement modifiés
+
+| Fichier | Modification |
+|---|---|
+| `backend/src/models/Track.js` | Champ `coverName` + `hasCover` dans `toPublic()` |
+| `backend/src/app.js` | Constantes/validation image, `upload.fields`, helper `removeUpload`, route cover, nettoyage DELETE, mapping `hasCover` |
+| `frontend-starter/src/app/shared/models/track.model.ts` | Champ `hasCover?` |
+| `frontend-starter/src/app/shared/services/track.service.ts` | `upload()` avec cover optionnelle, méthode `cover()` |
+| `frontend-starter/src/app/components/tracks-page/tracks-page.ts` | Signaux `coverUrls`/`coverError`, `chooseCover`, `loadCovers`, `revokeCovers` |
+| `frontend-starter/src/app/components/tracks-page/tracks-page.html` | Champ image + vignette/placeholder dans les cards |
+| `frontend-starter/src/app/components/tracks-page/tracks-page.css` | Styles `.cover`, `.cover-placeholder`, `.track-info` |
+| `API_CONTRACT.md` | Route cover, champ `coverImage`, booléen `hasCover` |
+| `RAPPORT_TP2.md` | Section AVANCÉ — Image de couverture |
+
+### Ce que l'étudiant sait expliquer sans l'agent
+- La différence entre `upload.single()` et `upload.fields()` et la structure de `req.files`.
+- Pourquoi la limite de taille image est vérifiée dans le handler et non par multer.
+- Pourquoi la validation côté client ne remplace jamais la validation backend.
+- Pourquoi chaque `ObjectURL` doit être révoqué et quand (changement de page, destruction).
+- Pourquoi la route cover vérifie `ownerId` comme la route audio.
+- Comment `hasCover` évite de requêter inutilement une couverture inexistante.
+
+---
+
+## Amélioration facultative — Barre de progression de l'upload
+
+### Déclenchement
+Demande d'ajouter une barre de progression pendant l'upload, pour compléter à 100 % les améliorations facultatives du sujet TP2. L'approche (progression mesurée côté client, sans modification backend) a été annoncée avant implémentation.
+
+### Plan proposé par l'agent
+Passer l'appel `http.post` du service en `reportProgress: true` + `observe: 'events'`, ajouter un signal `uploadProgress`, traiter les événements `UploadProgress` et `Response` dans le composant, afficher un élément natif `<progress>` conditionné par `uploading()`.
+
+### Erreurs ou propositions corrigées
+Une erreur de compilation est survenue : l'`aria-label` de la barre contenait une apostrophe française (« l'envoi ») à l'intérieur d'un binding Angular entre guillemets, ce que le parser de template a rejeté. La formulation a été corrigée pour supprimer l'apostrophe (« Progression envoi : X % »), et la compilation est ensuite passée sans erreur. Les détails techniques sont dans `RAPPORT_TP2.md`, section « Barre de progression de l'upload ».
+
+### Fichiers effectivement modifiés
+
+| Fichier | Modification |
+|---|---|
+| `frontend-starter/src/app/shared/services/track.service.ts` | `upload()` en `reportProgress`/`observe: 'events'` |
+| `frontend-starter/src/app/components/tracks-page/tracks-page.ts` | Import `HttpEventType`, signal `uploadProgress`, gestion des événements |
+| `frontend-starter/src/app/components/tracks-page/tracks-page.html` | Élément `<progress>` conditionné par `uploading()` |
+| `frontend-starter/src/app/components/tracks-page/tracks-page.css` | Styles `.upload-progress` |
+| `RAPPORT_TP2.md` | Section Barre de progression de l'upload |
+
+### Ce que l'étudiant sait expliquer sans l'agent
+- La différence entre `observe: 'body'` (défaut) et `observe: 'events'`.
+- Ce que porte un événement `UploadProgress` (`loaded`, `total`) et comment en tirer un pourcentage.
+- Pourquoi la progression est mesurée côté navigateur et non côté serveur.
+- Pourquoi la barre reste à 100 % un court instant avant la réponse finale.

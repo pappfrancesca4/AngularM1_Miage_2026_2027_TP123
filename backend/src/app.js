@@ -6,6 +6,7 @@ import fs from "node:fs";
 import fsPromises from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
+import mongoose from "mongoose";
 import { User } from "./models/User.js";
 import { Track } from "./models/Track.js";
 
@@ -23,6 +24,22 @@ try {
   throw error;
 }
 
+/**
+ * Supprime un fichier du dossier uploads en mode « meilleur effort » :
+ * l'échec est journalisé mais n'interrompt pas l'appelant. Utilisé pour nettoyer
+ * les fichiers orphelins (upload échoué) et les couvertures à la suppression.
+ */
+async function removeUpload(filename) {
+  if (!filename) return;
+  const target = path.join(UPLOADS, filename);
+  try {
+    await fsPromises.unlink(target);
+    console.log(`[tracks] Fichier supprimé : ${target}`);
+  } catch (error) {
+    console.error(`[tracks] Impossible de supprimer ${target}`, error);
+  }
+}
+
 // Ce secret reste côté serveur. Il ne doit jamais être copié dans Angular.
 const SECRET = process.env.JWT_SECRET || "tp1-development-secret";
 
@@ -30,8 +47,11 @@ const SECRET = process.env.JWT_SECRET || "tp1-development-secret";
 // sont refusés par Multer avant d'être écrits sur le disque.
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
-// Les types MIME autorisés correspondent aux formats demandés dans le sujet.
-const allowed = new Set([
+// Une image de couverture est bien plus légère qu'un morceau : 5 Mo suffisent.
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+
+// Les types MIME audio autorisés correspondent aux formats demandés dans le sujet.
+const allowedAudio = new Set([
   "audio/mpeg",
   "audio/wav",
   "audio/x-wav",
@@ -39,6 +59,9 @@ const allowed = new Set([
   "audio/mp4",
   "audio/x-m4a",
 ]);
+
+// Formats image acceptés pour la couverture. WebP est inclus pour sa compression moderne.
+const allowedImage = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 /**
  * Crée un jeton JWT contenant uniquement l'identité nécessaire à l'API.
@@ -107,14 +130,31 @@ const upload = multer({
   storage,
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (_request, file, callback) => {
-    // Seuls les types MIME audio demandés dans le sujet sont acceptés.
-    if (allowed.has(file.mimetype)) {
-      console.log(`[multer] Type accepté : ${file.mimetype}`);
-      return callback(null, true);
+    // La validation dépend du champ : "audio" accepte les formats audio,
+    // "coverImage" accepte les formats image. On distingue grâce à fieldname.
+    if (file.fieldname === "audio") {
+      if (allowedAudio.has(file.mimetype)) {
+        console.log(`[multer] Audio accepté : ${file.mimetype}`);
+        return callback(null, true);
+      }
+      const error = new Error("Format audio non accepté");
+      console.error(`[multer] Audio refusé : ${file.mimetype}`, error);
+      return callback(error);
     }
 
-    const error = new Error("Format audio non accepté");
-    console.error(`[multer] Type refusé : ${file.mimetype}`, error);
+    if (file.fieldname === "coverImage") {
+      if (allowedImage.has(file.mimetype)) {
+        console.log(`[multer] Image acceptée : ${file.mimetype}`);
+        return callback(null, true);
+      }
+      const error = new Error("Format image non accepté");
+      console.error(`[multer] Image refusée : ${file.mimetype}`, error);
+      return callback(error);
+    }
+
+    // Tout autre nom de champ est rejeté : le formulaire n'envoie que ces deux-là.
+    const error = new Error("Champ de fichier inattendu");
+    console.error(`[multer] Champ refusé : ${file.fieldname}`, error);
     return callback(error);
   },
 });
@@ -272,48 +312,36 @@ export function createApp() {
     try {
       const page = Math.max(1, Number(req.query.page) || 1);
       const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 5));
-      const filter = { ownerId: req.auth.sub };
+      // aggregate() ne caste pas automatiquement les strings en ObjectId, contrairement à find().
+      const filter = { ownerId: new mongoose.Types.ObjectId(req.auth.sub) };
 
-      console.log(`[tracks] Lecture page=${page}, limit=${limit}, user=${req.auth.sub}`);
+      if (req.query.search) {
+        filter.title = { $regex: req.query.search, $options: 'i' };
+      }
 
-      // La lecture des pistes et le comptage total sont parallélisés pour réduire la latence.
-      // on utilise Promise.all pour exécuter les deux opérations en parallèle. 
-      // Track.find() récupère les pistes de l'utilisateur avec pagination, 
-      // tandis que Track.countDocuments() compte le nombre total de pistes pour cet utilisateur.
-      // Promise.all attend que les deux opérations soient terminées avant de continuer et les résultats
-        // sont stockés dans les variables items et total.
-      const [items, total] = await Promise.all([
-        Track.find(filter)
-          .sort({ createdAt: -1 })
-          .skip((page - 1) * limit)
-          .limit(limit)
-          .select("-storedName")
-          .lean(),
-        Track.countDocuments(filter),
+      console.log(`[tracks] Lecture page=${page}, limit=${limit}, search="${req.query.search ?? ''}", user=${req.auth.sub}`);
+
+      // aggregatePaginate fait le find + le countDocuments en un seul pipeline,
+      // et renvoie directement les métadonnées de pagination (totalDocs, totalPages, etc.).
+      const aggregate = Track.aggregate([
+        { $match: filter },
+        { $sort: { createdAt: -1 } },
+        { $project: { storedName: 0 } },
       ]);
 
-      // items.map(track) crée un nouveau tableau publicItems en transformant chaque piste pour inclure 
-      // uniquement les champs nécessaires à l'API.
-      // L'identifiant MongoDB (_id) est converti en chaîne de caractères (id) pour être plus lisible 
-      // côté frontend.
-      // Le champ _id (généré par MongoDB) est supprimé pour éviter de l'exposer dans la réponse JSON.
-      const publicItems = items.map((track) => ({
-        ...track,
-        id: String(track._id),
-        _id: undefined,
+      const result = await Track.aggregatePaginate(aggregate, { page, limit });
+
+      // On retire _id (renommé id) et coverName (détail interne) du résultat.
+      // hasCover indique au frontend s'il doit requêter la route de couverture.
+      const docs = result.docs.map(({ _id, coverName, ...rest }) => ({
+        ...rest,
+        id: String(_id),
+        hasCover: Boolean(coverName),
       }));
 
-      console.log(`[tracks] ${publicItems.length} piste(s) envoyée(s) sur ${total}`);
+      console.log(`[tracks] ${docs.length} piste(s) envoyée(s) sur ${result.totalDocs}`);
 
-      // envoi de la réponse JSON avec les pistes publiques, la page actuelle, la limite par page, 
-      // le nombre total de pistes et le nombre total de pages.
-      res.json({
-        items: publicItems,
-        page,
-        limit,
-        total,
-        pages: Math.max(1, Math.ceil(total / limit)),
-      });
+      res.json({ ...result, docs });
     } catch (error) {
       console.error("[tracks] Erreur de pagination", error);
       next(error);
@@ -321,55 +349,59 @@ export function createApp() {
   });
 
   /**
-   * Reçoit le champ multipart audio et le champ texte title.
-   * upload.single("audio") traite un seul fichier et le place dans req.file,
-   * tandis que req.body.title contient le champ texte associé.
-   * C'est ici qu'est fait l'upload de fichiers sur le serveur. 
+   * Reçoit le champ multipart audio (requis), le champ coverImage (optionnel)
+   * et le champ texte title. upload.fields() traite les deux fichiers nommés et
+   * les place dans req.files, tandis que req.body.title contient le champ texte.
+   * C'est ici qu'est fait l'upload de fichiers sur le serveur.
    * Le middleware auth vérifie le JWT avant d'accepter l'upload.
-   * Le middleware upload.single("audio") traite le fichier audio envoyé dans le champ "audio" du formulaire
-   * ou de l'appel depuis le frontend avec un objet FormData.
-   * Si le fichier est accepté, il est stocké sur le disque et ses métadonnées sont enregistrées 
-   * dans MongoDB.
+   * Si les fichiers sont acceptés, ils sont stockés sur le disque et les
+   * métadonnées (dont le nom de la couverture) sont enregistrées dans MongoDB.
    */
   app.post(
     "/api/tracks",
     auth,
-    upload.single("audio"),
+    upload.fields([
+      { name: "audio", maxCount: 1 },
+      { name: "coverImage", maxCount: 1 },
+    ]),
     async (req, res, next) => {
+      // Avec upload.fields(), les fichiers arrivent dans req.files groupés par
+      // nom de champ : req.files.audio[0] et req.files.coverImage[0].
+      const audioFile = req.files?.audio?.[0];
+      const coverFile = req.files?.coverImage?.[0];
+
       try {
-        if (!req.file) {
-          console.warn(`[tracks] Upload sans fichier par ${req.auth.sub}`);
+        if (!audioFile) {
+          console.warn(`[tracks] Upload sans fichier audio par ${req.auth.sub}`);
           return res.status(400).json({ message: "Fichier audio requis" });
+        }
+
+        // Multer impose une limite globale (25 Mo) ; la limite image plus stricte
+        // est vérifiée ici, après écriture, puis les deux fichiers sont nettoyés.
+        if (coverFile && coverFile.size > MAX_IMAGE_SIZE) {
+          console.warn(`[tracks] Image trop volumineuse par ${req.auth.sub}`);
+          await removeUpload(coverFile.filename);
+          await removeUpload(audioFile.filename);
+          return res.status(400).json({ message: "Image trop volumineuse (maximum 5 Mo)" });
         }
 
         const track = await Track.create({
           ownerId: req.auth.sub,
-          title: req.body.title || req.file.originalname,
-          originalName: req.file.originalname,
-          storedName: req.file.filename,
-          mimeType: req.file.mimetype,
-          size: req.file.size,
+          title: req.body.title || audioFile.originalname,
+          originalName: audioFile.originalname,
+          storedName: audioFile.filename,
+          coverName: coverFile?.filename,
+          mimeType: audioFile.mimetype,
+          size: audioFile.size,
         });
 
         console.log(`[tracks] Upload enregistré : ${track.id}`);
         res.status(201).json(track.toPublic());
       } catch (error) {
         console.error("[tracks] Erreur après l'enregistrement du fichier", error);
-
-        // Si MongoDB échoue après l'écriture sur disque, on tente de nettoyer
-        // le fichier orphelin. L'erreur de nettoyage est elle aussi loguée.
-        if (req.file) {
-          const uploadedPath = path.join(UPLOADS, req.file.filename);
-          try {
-            await fsPromises.unlink(uploadedPath);
-            console.log(`[tracks] Fichier temporaire supprimé : ${uploadedPath}`);
-          } catch (cleanupError) {
-            console.error(
-              `[tracks] Impossible de supprimer le fichier temporaire ${uploadedPath}`,
-              cleanupError,
-            );
-          }
-        }
+        // Si MongoDB échoue après l'écriture disque, on nettoie les orphelins.
+        await removeUpload(audioFile?.filename);
+        await removeUpload(coverFile?.filename);
         next(error);
       }
     },
@@ -405,13 +437,45 @@ export function createApp() {
     }
   });
 
+  /** Envoie l'image de couverture d'une piste après vérification de sa propriété. */
+  app.get("/api/tracks/:id/cover", auth, async (req, res, next) => {
+    try {
+      // La vérification ownerId empêche d'accéder à la couverture d'autrui.
+      // select("+coverName") force le chargement du champ caché par défaut.
+      const track = await Track.findOne({
+        _id: req.params.id,
+        ownerId: req.auth.sub,
+      }).select("+coverName");
+
+      if (!track || !track.coverName) {
+        console.warn(`[tracks] Couverture absente ou interdite : ${req.params.id}`);
+        return res.status(404).json({ message: "Pas de couverture" });
+      }
+
+      // sendFile déduit le Content-Type de l'extension du fichier stocké
+      // (.jpg, .png, .webp), on n'a donc pas besoin de stocker le type MIME.
+      const coverPath = path.join(UPLOADS, track.coverName);
+      res.sendFile(coverPath, (error) => {
+        if (error) {
+          console.error(`[tracks] Erreur d'envoi couverture ${track.id}`, error);
+          if (!res.headersSent) next(error);
+          return;
+        }
+        console.log(`[tracks] Couverture envoyée : ${track.id}`);
+      });
+    } catch (error) {
+      console.error("[tracks] Erreur de préparation de la couverture", error);
+      next(error);
+    }
+  });
+
   /** Supprime la métadonnée et le fichier physique correspondant. */
   app.delete("/api/tracks/:id", auth, async (req, res, next) => {
     try {
       const track = await Track.findOneAndDelete({
         _id: req.params.id,
         ownerId: req.auth.sub,
-      }).select("+storedName");
+      }).select("+storedName +coverName");
 
       if (!track) {
         console.warn(`[tracks] Suppression impossible : ${req.params.id}`);
@@ -431,6 +495,10 @@ export function createApp() {
         });
       }
 
+      // La couverture est nettoyée en meilleur effort : son absence ne doit pas
+      // transformer une suppression réussie en erreur 500.
+      await removeUpload(track.coverName);
+
       res.status(204).end();
     } catch (error) {
       console.error("[tracks] Erreur de suppression", error);
@@ -442,10 +510,12 @@ export function createApp() {
   app.use((error, _req, res, next) => {
     console.error("[error] Erreur reçue par le gestionnaire central", error);
 
-    if (
-      error instanceof multer.MulterError ||
-      error?.message === "Format audio non accepté"
-    ) {
+    const rejectedUploads = new Set([
+      "Format audio non accepté",
+      "Format image non accepté",
+      "Champ de fichier inattendu",
+    ]);
+    if (error instanceof multer.MulterError || rejectedUploads.has(error?.message)) {
       return res.status(400).json({ message: error.message });
     }
     if (error?.name === "ValidationError") {

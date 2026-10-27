@@ -21,9 +21,23 @@
       @if (fileError()) {
         <p class="error" role="alert">{{ fileError() }}</p>
       }
+      <label>
+        Image de couverture (optionnel)
+        <input type="file" accept="image/jpeg,image/png,image/webp" (change)="chooseCover($event)" />
+      </label>
+      @if (coverError()) {
+        <p class="error" role="alert">{{ coverError() }}</p>
+      }
       <button type="button" (click)="upload()" [disabled]="!file || uploading()">
         {{ uploading() ? 'Envoi en cours…' : 'Envoyer' }}
       </button>
+      @if (uploading()) {
+        <div class="upload-progress">
+          <progress [value]="uploadProgress()" max="100"
+                    [attr.aria-label]="'Progression envoi : ' + uploadProgress() + ' %'"></progress>
+          <small>{{ uploadProgress() }} %</small>
+        </div>
+      }
       @if (uploadSuccess()) {
         <p class="success" role="status">Piste ajoutée avec succès.</p>
       }
@@ -32,43 +46,77 @@
       }
     </article>
 
-    <!-- Carte bibliothèque -->
-    <article class="card">
-      <div class="row">
-        <h2>Mes pistes</h2>
-        <button type="button" (click)="load()">Actualiser</button>
-      </div>
-
-      @if (loading()) {
-        <p>Chargement…</p>
-      }
-      @if (loadError()) {
-        <p class="error" role="alert">{{ loadError() }}</p>
-      }
-
-      @for (track of tracks(); track track.id) {
-        <div class="track" [class.playing]="currentTrack()?.id === track.id">
-          <div class="track-info">
-            <b>{{ track.title }}</b>
-            <small>{{ track.originalName }}</small>
-            <small>{{ track.mimeType }} · {{ formatSize(track.size) }} · {{ formatDate(track.createdAt) }}</small>
-          </div>
-          <button type="button" (click)="play(track)" [attr.aria-label]="'Lire ' + track.title">
-            {{ currentTrack()?.id === track.id ? '▶ En cours' : '▶' }}
-          </button>
+    <!-- Carte bibliothèque + paginateur -->
+    <div class="library-col">
+      <article class="card">
+        <div class="row">
+          <h2>Mes pistes</h2>
+          <button type="button" (click)="load()">Actualiser</button>
         </div>
-      } @empty {
-        @if (!loading()) {
-          <p>Aucune piste.</p>
-        }
-      }
+        <input [formControl]="search" placeholder="Rechercher par titre…" class="search-input" />
 
-      <div class="pager">
-        <button type="button" (click)="go(page() - 1)" [disabled]="page() === 1">Préc.</button>
-        <span>Page {{ page() }} / {{ pages() }}</span>
-        <button type="button" (click)="go(page() + 1)" [disabled]="page() === pages()">Suiv.</button>
+        @if (loading()) {
+          <p>Chargement…</p>
+        }
+        @if (loadError()) {
+          <p class="error" role="alert">{{ loadError() }}</p>
+        }
+
+        @for (track of tracks(); track track.id) {
+          <div class="track" [class.playing]="currentTrack()?.id === track.id">
+            @if (coverUrls()[track.id]) {
+              <img class="cover" [src]="coverUrls()[track.id]" [alt]="'Couverture de ' + track.title" />
+            } @else {
+              <div class="cover cover-placeholder" aria-hidden="true">♪</div>
+            }
+            <div class="track-info">
+              <b>{{ track.title }}</b>
+              <small>{{ track.originalName }}</small>
+              <small>{{ track.mimeType }} · {{ formatSize(track.size) }} · {{ formatDate(track.createdAt) }}</small>
+            </div>
+            <div class="track-actions">
+              <button type="button" (click)="play(track)" [attr.aria-label]="'Lire ' + track.title">
+                {{ currentTrack()?.id === track.id ? '▶ En cours' : '▶' }}
+              </button>
+              @if (confirmId() === track.id) {
+                <button type="button" (click)="confirmDelete(track.id)" class="btn-danger">
+                  Confirmer
+                </button>
+                <button type="button" (click)="cancelDelete()">Annuler</button>
+              } @else {
+                <button type="button" (click)="askDelete(track.id)"
+                        [disabled]="deletingId() === track.id"
+                        class="btn-danger-outline">
+                  {{ deletingId() === track.id ? '…' : '🗑' }}
+                </button>
+              }
+            </div>
+          </div>
+        } @empty {
+          @if (!loading()) {
+            <p>Aucune piste.</p>
+          }
+        }
+      </article>
+
+      <div class="pager-bar">
+        <div class="page-size-control">
+          <span>Pistes par page</span>
+          <select (change)="changePageSize(+$any($event.target).value)">
+            <option [value]="5"  [selected]="limit() === 5">5</option>
+            <option [value]="10" [selected]="limit() === 10">10</option>
+            <option [value]="25" [selected]="limit() === 25">25</option>
+          </select>
+        </div>
+        <mat-paginator
+          [length]="total()"
+          [pageSize]="limit()"
+          [pageIndex]="page() - 1"
+          [hidePageSize]="true"
+          (page)="pageChange($event)">
+        </mat-paginator>
       </div>
-    </article>
+    </div>
 
   </div>
 

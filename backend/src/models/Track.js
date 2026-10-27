@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 /*
  * Ce schéma conserve les métadonnées d'une piste. Le fichier audio lui-même
@@ -16,6 +17,7 @@ const schema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     originalName: { type: String, required: true },
     storedName: { type: String, required: true, select: false },
+    coverName: { type: String, select: false },
     mimeType: { type: String, required: true },
     size: { type: Number, required: true, min: 0 },
   },
@@ -24,6 +26,8 @@ const schema = new mongoose.Schema(
 
 // Cet index accélère la liste des pistes d'un utilisateur triées par date.
 schema.index({ ownerId: 1, createdAt: -1 });
+
+schema.plugin(aggregatePaginate);
 
 /**
  * Convertit un document Mongoose en objet sûr pour le frontend.
@@ -39,6 +43,7 @@ schema.methods.toPublic = function () {
     mimeType: this.mimeType,
     size: this.size,
     createdAt: this.createdAt,
+    hasCover: Boolean(this.coverName),
   };
 };
 

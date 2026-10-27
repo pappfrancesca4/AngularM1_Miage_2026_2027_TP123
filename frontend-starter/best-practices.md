@@ -26,82 +26,159 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - Follow WCAG AA minimums, including keyboard focus, labels, semantic HTML, and sufficient color contrast.
 - Use `NgOptimizedImage` for static images.
 
-## Testing — chaque fonctionnalité doit être testée
+## AI assistant workflow — required steps for every feature
 
-Toute fonctionnalité ajoutée au projet doit être vérifiée selon les trois niveaux suivants, dans l'ordre.
+Before writing any code, the assistant must follow these steps for **every** feature, no matter how small.
 
-### 1. Build sans erreur
+### Step 1 — Explain the plan and confirm
 
-Avant de considérer une fonctionnalité terminée, lancer :
+Before touching any file, explain:
+1. **What the feature does** — one sentence describing the user-facing behaviour.
+2. **Which files will be changed** — list every file (component, service, backend route, model, CSS, contract).
+3. **Architecture diagram** — a text diagram showing the data flow end to end, for example:
+
+```
+User types in search input
+  → FormControl.valueChanges (debounceTime 300ms, distinctUntilChanged)
+  → page.set(1) + load()
+    → TrackService.list(page, limit, search)
+      → GET /api/tracks?page=1&limit=5&search=blues   [HTTP, JWT]
+        → MongoDB: { title: { $regex: "blues", $options: "i" } }
+        → { items: [...], pages: 3 }
+      → tracks.set(items), pages.set(pages)
+  → @for renders updated list
+```
+
+4. **Wait for confirmation** — do not write any code until the user says "yes" or "ok".
+
+### Step 2 — Explain every code change line by line
+
+After the user confirms, make the changes file by file. For each file:
+- State the filename and which section was changed.
+- Go through every line or block that was added or modified and explain **what it does** and **why it is written that way** — not just a summary of the file. If a line could have been written differently, explain why this version was chosen.
+- Flag any trade-off or future limitation.
+
+Example explanation format:
+
+> **`track.service.ts` — `list()` method**
+>
+> `search = ''` — third parameter with an empty string default so existing callers don't need to pass it.
+>
+> `if (search) params['search'] = search` — the field is only added to the params object when non-empty. Why: passing `search=` as an empty string would reach the backend and trigger a regex match against `""`, which matches every document — adding noise without filtering anything. Omitting it keeps the URL clean and skips the regex entirely.
+
+### Step 3 — Write the feature into the active rapport
+
+After implementing and explaining a feature, add a section to the active `RAPPORT_TP{n}.md` (or `RAPPORT_FEATURE_{name}.md` for free development). The section must include:
+
+- The feature name and a one-sentence description of what it does.
+- The architecture diagram shown in Step 1.
+- The file-by-file explanation written in Step 2: every file that changed, what was modified, why that approach was chosen, what the trade-offs are.
+- The verification result (build output, manual test scenarios and outcomes).
+
+**Priority is completeness and explanation, not format.** The goal is to note every change and explain in detail why each decision was made. Short code snippets are acceptable when they help illustrate a specific point (a method signature, a key expression, a configuration line) — what to avoid is pasting large blocks of code without any explanation around them. The explanation is what matters, not the presence or absence of code.
+
+**Also update `RAPPORT_IA_MODELE.md`** after each feature with the following sections:
+
+- **Déclenchement** — what was asked and why, in proper written French.
+- **Plan proposé par l'agent** — what the agent said it would do before touching any file.
+- **Erreurs ou propositions corrigées** — every correction round, described as a human–AI interaction: what was observed in the browser, how it was reported to the agent, what the agent proposed, whether it was applied and worked or needed another iteration. Each round gets its own paragraph. Reference `RAPPORT_TP2.md` for technical details.
+- **Fichiers effectivement modifiés** — the final list of changed files as a table.
+- **Ce que l'étudiant sait expliquer sans l'agent** — bullet list of concepts now understood independently.
+
+**When writing rapport IA: never copy prompts word for word.** The conversation uses informal, spoken language. A school report requires proper written French. Describe what was asked and why, not the exact wording of the message. For example, instead of copying « t as rien corrige ca rentre encore », write: "Une deuxième correction était nécessaire car le problème de superposition persistait après la première tentative."
+
+This keeps both rapports in sync with the code without needing a separate documentation pass.
+
+### Step 4 — Verify before closing
+
+After making the changes, always run:
+
+```bash
+cd frontend-starter && ng build
+```
+
+Report zero TypeScript errors and zero Angular warnings before marking the feature done.
+
+---
+
+## Testing — every feature must be tested
+
+Every feature added to the project must be verified at the three levels below, in order.
+
+### 1. Clean build
+
+Before considering a feature complete, run:
 
 ```bash
 cd frontend-starter
 ng build
 ```
 
-Zéro erreur TypeScript et zéro avertissement Angular est la barre minimale. Un build qui passe ne garantit pas le bon fonctionnement, mais un build qui échoue signifie que la fonctionnalité est incomplète.
+Zero TypeScript errors and zero Angular warnings is the minimum bar. A passing build does not guarantee correctness, but a failing build means the feature is incomplete.
 
-### 2. Test manuel dans le navigateur
+### 2. Manual browser testing
 
-Pour chaque fonctionnalité, tester au minimum :
+For each feature, test at minimum:
 
-- **Le chemin nominal (happy path) :** l'action produit le résultat attendu (UI mise à jour, requête HTTP correcte, statut 2xx).
-- **Les cas d'erreur :** formulaire invalide, serveur injoignable (status 0), ressource non trouvée (404), accès non autorisé (401), données incorrectes (400/409).
-- **L'état de chargement :** le bouton est désactivé pendant la requête, l'indicateur s'affiche, puis disparaît.
-- **La persistence :** rechargement de la page (F5) → l'état est-il cohérent ?
+- **Happy path:** the action produces the expected result (UI updated, correct HTTP request, 2xx status).
+- **Error cases:** invalid form, unreachable server (status 0), not found (404), unauthorized (401), bad input (400/409).
+- **Loading state:** the button is disabled during the request, the indicator appears, then disappears.
+- **Persistence:** hard reload (F5) — is the state consistent?
 
-Ouvrir systématiquement les **DevTools → onglet Network** (filtre XHR/Fetch) et vérifier pour chaque requête :
-- méthode et URL ;
-- corps de la requête (Request Payload) ;
-- statut de la réponse ;
-- présence ou absence de l'en-tête `Authorization`.
+Always open **DevTools → Network tab** (filter XHR/Fetch) and check for each request:
+- method and URL;
+- request body (Request Payload);
+- response status;
+- presence or absence of the `Authorization` header.
 
-Ouvrir également la **console** pour confirmer l'absence d'erreurs inattendues.
+Also open the **console** to confirm the absence of unexpected errors.
 
-### 3. Tests unitaires (`.spec.ts`)
+### 3. Unit tests (`.spec.ts`)
 
-Pour les services et les guards, créer un fichier `.spec.ts` dans le même dossier que le fichier testé. Les composants simples peuvent être testés manuellement ; les services avec logique HTTP ou les guards avec conditions doivent avoir un test automatisé. Lancer :
+For services and guards, create a `.spec.ts` file in the same folder as the file under test. Simple components can be tested manually; services with HTTP logic or guards with conditions must have an automated test. Run:
 
 ```bash
 ng test
 ```
 
-Un test unitaire minimal pour un service vérifie :
-- que la bonne URL et la bonne méthode HTTP sont utilisées ;
-- que le Signal ou la valeur de retour est correct en cas de succès ;
-- que l'erreur est propagée en cas d'échec.
+A minimal unit test for a service verifies:
+- that the correct URL and HTTP method are used;
+- that the Signal or return value is correct on success;
+- that the error is propagated on failure.
 
-> **Priorité :** build → test manuel → test unitaire. Ne pas bloquer une livraison sur l'absence de tests unitaires, mais ne pas laisser une fonctionnalité sans test manuel documenté.
+> **Priority:** build → manual test → unit test. Do not block a delivery on missing unit tests, but never leave a feature without a documented manual test.
 
-## Rapports de progression
+---
 
-### TP 1, 2 et 3
+## Progress reports
 
-Créer un fichier `RAPPORT_TP{n}.md` à la racine du dépôt pour chaque TP (ex. `RAPPORT_TP1.md`, `RAPPORT_TP2.md`, `RAPPORT_TP3.md`). Ce fichier doit contenir :
+### TP 1, 2 and 3
 
-- les réponses aux questions posées dans `SUJET_ETUDIANT_TP{n}.md` (missions, cartographie, routes, explication des mécanismes) ;
-- la liste des fichiers modifiés et le rôle de chaque modification ;
-- les vérifications effectuées (build, Network, tests manuels) ;
-- les preuves de fonctionnement (captures DevTools, description des scénarios) ;
-- le lien vers `RAPPORT_IA_MODELE.md` pour la partie usage de l'IA.
+Create a `RAPPORT_TP{n}.md` file at the repository root for each TP (e.g. `RAPPORT_TP1.md`, `RAPPORT_TP2.md`, `RAPPORT_TP3.md`). This file must contain:
 
-### Après les TP guidés — développement libre
+- answers to the questions in `SUJET_ETUDIANT_TP{n}.md` (missions, mapping, routes, mechanism explanations);
+- the list of modified files and the role of each change;
+- verifications performed (build, Network, manual tests);
+- proof of working (DevTools screenshots, scenario descriptions);
+- a link to `RAPPORT_IA_MODELE.md` for the AI usage section.
 
-Dès que le sujet de TP n'impose plus le contenu à développer, continuer à documenter le travail dans des rapports réguliers. Deux formes acceptées :
+### After the guided TPs — free development
 
-**Par fonctionnalité :** créer un fichier `RAPPORT_FEATURE_{nom}.md` à chaque nouvelle fonctionnalité ajoutée au projet (ex. `RAPPORT_FEATURE_player.md`). Y décrire :
-- l'objectif fonctionnel et les fichiers concernés ;
-- les choix techniques retenus et les alternatives écartées ;
-- les routes API créées ou modifiées (`API_CONTRACT.md` doit être mis à jour en même temps) ;
-- les vérifications et preuves de fonctionnement.
+Once the TP assignment no longer dictates the content, continue documenting work in regular reports. Two accepted formats:
 
-**Par journée de travail :** tenir un journal `JOURNAL.md` à la racine avec une entrée par séance, au format :
+**Per feature:** create a `RAPPORT_FEATURE_{name}.md` file for each new feature added (e.g. `RAPPORT_FEATURE_player.md`). Describe:
+- the functional goal and the files involved;
+- the technical choices made and the alternatives discarded;
+- the API routes created or modified (`API_CONTRACT.md` must be updated at the same time);
+- verifications and proof of working.
+
+**Per working day:** keep a `JOURNAL.md` file at the root with one entry per session, in the format:
 ```
-## AAAA-MM-JJ
-- Fonctionnalité travaillée : …
-- Fichiers modifiés : …
-- Problèmes rencontrés et solutions : …
-- Ce qui reste à faire : …
+## YYYY-MM-DD
+- Feature worked on: …
+- Files modified: …
+- Problems encountered and solutions: …
+- What remains to do: …
 ```
 
-Dans les deux cas, mettre à jour `RAPPORT_IA_MODELE.md` avec les prompts utilisés, les fichiers lus ou modifiés par l'assistant et les vérifications réalisées sans l'agent.
+In both cases, update `RAPPORT_IA_MODELE.md` with the prompts used, the files read or modified by the assistant, and the verifications performed without the agent.
