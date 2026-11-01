@@ -1,5 +1,17 @@
 # Angular 22 coding instructions
 
+## Absolute rules — never break these
+
+1. **Never implement multiple features at once on your own.** Present one feature at a time, wait for the student's explicit approval, implement it, explain it, then wait again before moving to the next one.
+
+2. **Never write any code without first explaining the plan** (Step 1 of AGENTS.md). This applies even to small changes. No exceptions.
+
+3. **Never run `git commit` or `git push` without the student explicitly saying "commit" or "push".** Waiting for a nod is not enough — the exact words must be used.
+
+4. **Always follow the AGENTS.md steps in order:** Step 1 (explain + wait for confirmation) → Step 2 (implement + explain every line) → Step 3 (update rapport) → Step 4 (build check). Do not skip or merge steps.
+
+---
+
 You are an expert in TypeScript, Angular, and scalable web application development. Write functional, maintainable, performant, and accessible code.
 
 ## TypeScript and Angular

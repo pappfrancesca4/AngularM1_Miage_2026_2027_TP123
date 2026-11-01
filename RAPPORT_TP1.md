@@ -164,17 +164,33 @@ Observations à effectuer dans l'onglet **Network** des DevTools (filtre XHR/Fet
 - **Réponse :** `{ "token": "eyJ...", "user": { "id": "...", "name": "Demo", "email": "demo@example.com", "createdAt": "..." } }`
 - **En-tête `Authorization` :** absent (route publique, pas de token envoyé)
 
-### 2. Connexion refusée
+![POST /api/auth/login → 200 OK](captures/tp1/04-login-200.png)
+
+### 2. Inscription réussie
+
+- **Méthode / URL :** `POST /api/auth/register`
+- **Statut :** `201 Created`
+- **Réponse :** `{ "token": "eyJ...", "user": { ... } }`
+
+![POST /api/auth/register → 201 Created](captures/tp1/02-register-201.png)
+
+![Profil affiché après inscription](captures/tp1/01-inscription-profil.png)
+
+### 3. Connexion refusée
 
 - **Méthode / URL :** `POST /api/auth/login`
 - **Statut :** `401 Unauthorized`
 - **Réponse :** `{ "message": "Identifiants incorrects" }`
 - **Effet UI :** le message d'erreur s'affiche sous le formulaire via `@if (error())`
 
-### 3. Lecture ou modification de `/api/users/me`
+### 4. Lecture ou modification de `/api/users/me`
 
 - **GET `/api/users/me`** — `200 OK` avec le profil utilisateur ; en-tête `Authorization: Bearer eyJ...` visible dans les Request Headers
 - **PUT `/api/users/me`** — corps `{ "name": "Nouveau nom" }` ; `200 OK` avec l'utilisateur mis à jour
+
+![GET /api/users/me → 200 avec JWT dans Authorization](captures/tp1/03-get-me-jwt.png)
+
+![PUT /api/users/me → 200 + "Nom mis à jour avec succès."](captures/tp1/05-mise-a-jour-nom.png)
 
 ---
 

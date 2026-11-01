@@ -4,6 +4,7 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Track } from '../../shared/models/track.model';
 import { TrackService } from '../../shared/services/track.service';
 
@@ -13,12 +14,13 @@ const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 @Component({
-  imports: [ReactiveFormsModule, MatPaginatorModule],
+  imports: [ReactiveFormsModule, MatPaginatorModule, MatSnackBarModule],
   templateUrl: './tracks-page.html',
   styleUrl: './tracks-page.css',
 })
 export class TracksPageComponent implements OnDestroy {
   private readonly service = inject(TrackService);
+  private readonly snackBar = inject(MatSnackBar);
 
   readonly tracks = signal<Track[]>([]);
   readonly page = signal(1);
@@ -246,10 +248,13 @@ export class TracksPageComponent implements OnDestroy {
     this.confirmId.set(null);
     this.deletingId.set(id);
 
+    const trackTitle = this.tracks().find(t => t.id === id)?.title ?? id;
+
     this.service.delete(id).subscribe({
       next: () => {
         console.debug('[TracksPage] Piste supprimée', id);
         this.deletingId.set(null);
+        this.snackBar.open(`"${trackTitle}" supprimée.`, 'OK', { duration: 3000 });
         if (this.currentTrack()?.id === id) {
           const url = this.audioUrl();
           if (url) URL.revokeObjectURL(url);
@@ -264,6 +269,12 @@ export class TracksPageComponent implements OnDestroy {
       error: (error) => {
         console.error('[TracksPage] Suppression impossible', error);
         this.deletingId.set(null);
+        const status: number = error?.status;
+        const msg =
+          status === 404 ? 'Cette piste n\'existe plus (supprimée dans un autre onglet ?).' :
+          status === 403 ? 'Vous n\'êtes pas le propriétaire de cette piste.' :
+          'Impossible de supprimer la piste.';
+        this.snackBar.open(msg, 'Fermer', { duration: 5000 });
       },
     });
   }

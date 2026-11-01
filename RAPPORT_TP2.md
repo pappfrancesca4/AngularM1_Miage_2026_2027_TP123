@@ -146,6 +146,16 @@ Si 100 `<audio src="/api/tracks/:id/audio">` étaient dans la page, le navigateu
 | Lecture audio | GET | `/api/tracks/:id/audio` | 200 | `Authorization: Bearer ...` présent ; réponse de type `audio/*` |
 | Piste lue par un autre compte | GET | `/api/tracks/:id/audio` | 404 ou 403 | La piste n'appartient pas à l'utilisateur |
 
+![Bibliothèque — GET /api/tracks?page=1&limit=5 → 200](captures/tp2/01-bibliotheque.png)
+
+![POST /api/tracks → 201 Created](captures/tp2/02-upload-201.png)
+
+![Piste ajoutée avec succès — rechargement 304 (ETag)](captures/tp2/03-piste-ajoutee-succes.png)
+
+![GET /api/tracks/:id/audio → 200 audio/mpeg](captures/tp2/06-audio-200.png)
+
+![Lecture audio — blob 206 Partial Content](captures/tp2/07-audio-206.png)
+
 ---
 
 ## Fonctionnalité optionnelle 1 — Suppression de piste
@@ -571,6 +581,10 @@ Route `GET /tracks/:id/cover` documentée, champ `coverImage` optionnel sur le P
 - Upload sans image → placeholder ♪ affiché.
 - Image > 5 Mo ou format non supporté → message d'erreur, upload bloqué.
 - Suppression d'une piste → fichier image nettoyé sur le disque.
+
+![Liste avec vignette — GET /api/tracks 200](captures/tp2/04-liste-avec-vignette.png)
+
+![GET /api/tracks/:id/cover → 200 image/png](captures/tp2/05-cover-200.png)
 
 ---
 

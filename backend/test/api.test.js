@@ -1,11 +1,22 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import mongoose from "mongoose";
+import jwt from "jsonwebtoken";
 import { createApp } from "../src/app.js";
 import { User } from "../src/models/User.js";
 import { Track } from "../src/models/Track.js";
 
 let server, base;
+
+// Génère un token signé avec le secret de développement défini dans app.js.
+// Permet de passer le middleware auth() sans avoir de compte en base.
+function makeToken() {
+  return jwt.sign(
+    { sub: new mongoose.Types.ObjectId().toString(), email: "test@test.com" },
+    "tp1-development-secret",
+    { expiresIn: "1h" }
+  );
+}
 
 test.before(async () => {
   server = createApp().listen(0);
@@ -40,4 +51,49 @@ test("schémas Mongoose et relation", () => {
   
   assert.equal(t.title, "Blues");
   assert.equal(Track.schema.path("ownerId").options.ref, "User");
+});
+
+// --- Tests de contrat (extension TP3) ---
+
+test("GET /api/tracks sans JWT renvoie 401", async () => {
+  const r = await fetch(base + "/api/tracks");
+  assert.equal(r.status, 401);
+  const body = await r.json();
+  assert.ok(body.message, "La réponse doit contenir un message d'erreur");
+});
+
+test("GET /api/tracks avec JWT invalide renvoie 401", async () => {
+  const r = await fetch(base + "/api/tracks", {
+    headers: { Authorization: "Bearer jeton.invalide.bidon" },
+  });
+  assert.equal(r.status, 401);
+});
+
+test("POST /api/tracks sans fichier audio renvoie 400", async () => {
+  const token = makeToken();
+  const form = new FormData();
+  form.append("title", "Sans fichier");
+
+  const r = await fetch(base + "/api/tracks", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  assert.equal(r.status, 400);
+  const body = await r.json();
+  assert.ok(body.message, "La réponse doit contenir un message d'erreur");
+});
+
+test("POST /api/tracks avec MIME non autorisé renvoie 400", async () => {
+  const token = makeToken();
+  const form = new FormData();
+  form.append("audio", new Blob(["fake"], { type: "text/plain" }), "fake.txt");
+  form.append("title", "MIME invalide");
+
+  const r = await fetch(base + "/api/tracks", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  assert.equal(r.status, 400);
 });
